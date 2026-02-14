@@ -22,16 +22,18 @@ func main()  {
 	fmt.Println("===================")
 
 	for {
-		con, err := listener.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			log.Fatalf("could not accept connection: %s", err)
 		}
 
-		fmt.Println("Connection accepted")
-		linesChan := getLinesChannel(con)
+		fmt.Println("Connection accepted from", conn.RemoteAddr())
+		linesChan := getLinesChannel(conn)
 		for line := range linesChan {
 			fmt.Println(line)
 		}
+
+		fmt.Println("Connection to", conn.RemoteAddr(), "closed")
 	}
 }
 
