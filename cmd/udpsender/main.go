@@ -9,7 +9,7 @@ import (
 
 const serverAddr = "localhost:42069"
 
-func main()  {
+func main() {
 	udpAddr, err := net.ResolveUDPAddr("udp", serverAddr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error resolving UDP address: %v\n", err)

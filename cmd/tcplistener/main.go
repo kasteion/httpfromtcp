@@ -11,7 +11,7 @@ import (
 
 const port = ":42069"
 
-func main()  {
+func main() {
 	listener, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Fatalf("could not listen on %s - %s\n", port, err)
@@ -57,7 +57,7 @@ func getLinesChannel(f io.ReadCloser) <-chan string {
 				if errors.Is(err, io.EOF) {
 					break
 				}
-				
+
 				fmt.Printf("error: %s\n", err.Error())
 				return
 			}
@@ -71,6 +71,6 @@ func getLinesChannel(f io.ReadCloser) <-chan string {
 			currentLineContents += parts[len(parts)-1]
 		}
 	}()
-	
+
 	return lines
 }
