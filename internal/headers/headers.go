@@ -3,7 +3,9 @@ package headers
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
+	"unicode"
 )
 
 const crlf = "\r\n"
@@ -33,7 +35,16 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	}
 
 	value := bytes.TrimSpace(parts[1])
-	key = strings.TrimSpace(key)
+	key = strings.ToLower(strings.TrimSpace(key))
+
+	specialCharacters := []rune{'!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~'}
+	if len(key) > 0 {
+		for _, r := range key {
+			if !unicode.IsLetter(r) && !unicode.IsDigit(r) && !slices.Contains(specialCharacters, r){
+				return 0, false, fmt.Errorf("invalid characters in header name %s", key)
+			}
+		}
+	}
 
 	h.Set(key, string(value))
 	return idx + 2, false, nil
