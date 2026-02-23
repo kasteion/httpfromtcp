@@ -25,10 +25,12 @@ func main() {
 		if err != nil {
 			log.Fatalf("could not accept connection: %s", err)
 		}
-
 		fmt.Println("Connection accepted from", conn.RemoteAddr())
-		req, _ := request.RequestFromReader(conn)
 
+		req, err := request.RequestFromReader(conn)
+		if err != nil {
+			log.Fatalf("error parsing request: %s\n", err.Error())
+		}
 		fmt.Println("Request line:")
 		fmt.Println("- Method:", req.RequestLine.Method)
 		fmt.Println("- Target:", req.RequestLine.RequestTarget)
