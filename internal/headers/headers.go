@@ -6,48 +6,39 @@ import (
 	"strings"
 )
 
-const clrf = "\r\n"
-const colon = ":"
+const crlf = "\r\n"
 
 type Headers map[string]string
 
 func NewHeaders() Headers {
-	return Headers{}
+	return map[string]string{}
 }
 
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {
-	if len(data) == 0 {
-		return 0, false, fmt.Errorf("Bad header format")
-	}
-
-	crlfIdx := bytes.Index(data, []byte(clrf))
-	if crlfIdx == -1 {
+	idx := bytes.Index(data, []byte(crlf))
+	if idx == -1 {
 		return 0, false, nil
 	}
-
-	if crlfIdx == 0 {
-		return 0, true, nil
+	if idx == 0 {
+		// the empty line
+		// headers are done, consume the CRLF
+		return 2, true, nil
 	}
 
-	cIdx := bytes.Index(data, []byte(colon))
+	parts := bytes.SplitN(data[:idx], []byte(":"), 2)
+	key := string(parts[0])
 
-
-	for cIdx != -1{
-		key := string(data[:cIdx])
-		if strings.Contains(key, " ") {
-			return 0, false, fmt.Errorf("Bad header format")
-		}
-
-		value := strings.Trim(string(data[cIdx+1:crlfIdx]), " ")
-		h[key] = value
-
-		n += crlfIdx + 2
-
-		data = data[crlfIdx+2:]
-		cIdx = bytes.Index(data, []byte(colon))
-		crlfIdx = bytes.Index(data, []byte(clrf))
-		// fmt.Println("cIdx:", cIdx, "crlfIdx:", crlfIdx, "key:", key, "value:", value, "data:", string(data))
+	if key != strings.TrimRight(key, " ") {
+		return 0, false, fmt.Errorf("invalid header name: %s", key)
 	}
-	
-	return n, false, nil
+
+	value := bytes.TrimSpace(parts[1])
+	key = strings.TrimSpace(key)
+
+	h.Set(key, string(value))
+	return idx + 2, false, nil
+}
+
+func (h Headers) Set(key, value string) {
+	h[key] = value
 }
