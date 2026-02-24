@@ -51,5 +51,10 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 }
 
 func (h Headers) Set(key, value string) {
+	if elem, ok := h[key]; ok {
+		h[key] = fmt.Sprintf("%s, %s", elem, value)
+		return
+	}
+
 	h[key] = value
 }
