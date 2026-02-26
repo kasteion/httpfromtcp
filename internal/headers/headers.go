@@ -38,11 +38,9 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	value := bytes.TrimSpace(parts[1])
 	key = strings.ToLower(strings.TrimSpace(key))
 
-	if len(key) > 0 {
-		for _, r := range key {
-			if (r < 'A' || r > 'Z') && (r < 'a' || r > 'z') && (r < '0' || r > '9') && !slices.Contains(specialCharacters, r){
-				return 0, false, fmt.Errorf("invalid characters in header name %s", key)
-			}
+	for _, r := range key {
+		if (r < 'A' || r > 'Z') && (r < 'a' || r > 'z') && (r < '0' || r > '9') && !slices.Contains(specialCharacters, r){
+			return 0, false, fmt.Errorf("invalid header token found: %s", key)
 		}
 	}
 
