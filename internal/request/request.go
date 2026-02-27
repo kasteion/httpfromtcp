@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/kasteion/httpfromtcp/internal/headers"
@@ -13,8 +14,10 @@ import (
 type Request struct {
 	RequestLine RequestLine
 	Headers headers.Headers
+	Body []byte
 
 	state requestState
+	bodylengthRead int
 }
 
 type RequestLine struct {
@@ -28,6 +31,7 @@ type requestState int
 const (
 	requestStateInitialized requestState = iota
 	requestStateParsingHeaders
+	requestStateParsingBody
 	requestStateDone
 )
 
@@ -40,6 +44,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	req := &Request{
 		state: requestStateInitialized,
 		Headers: headers.NewHeaders(),
+		Body: make([]byte, 0),
 	}
 	for req.state != requestStateDone {
 		if readToIndex >= len(buf) {
@@ -133,9 +138,6 @@ func (r *Request) parse(data []byte) (int, error) {
 			break
 		}
 	}
-	// fmt.Println(data[totalBytesParsed:])
-	// fmt.Println(len(data[totalBytesParsed:]))
-	// fmt.Println(len(crlf))
 	return totalBytesParsed, nil 
 }
 
@@ -160,9 +162,28 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 			return 0, err
 		}
 		if done {
-			r.state = requestStateDone
+			r.state = requestStateParsingBody
 		}
 		return n, nil
+	case requestStateParsingBody:
+		contentLenStr, ok := r.Headers.Get("Content-Length")
+		if  !ok {
+			r.state = requestStateDone
+			return len(data), nil
+		}
+		contentLen, err := strconv.Atoi(contentLenStr)
+		if err != nil {
+			return 0, fmt.Errorf("malformed Content-Length: %s", err)
+		}
+		r.Body = append(r.Body, data...)
+		r.bodylengthRead += len(data)
+		if r.bodylengthRead > contentLen {
+			return 0, fmt.Errorf("error: Content-Length too large")
+		}  
+		if r.bodylengthRead == contentLen {
+			r.state = requestStateDone
+		}
+		return len(data), nil
 	case requestStateDone:
 		return 0, fmt.Errorf("error: trying to read data in a done state")
 	default:
