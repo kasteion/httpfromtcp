@@ -15,7 +15,27 @@ const (
 	StatusCodeInternalServerError StatusCode = 500
 )
 
-func WriteStatusLine(w io.Writer, statusCode StatusCode) error {
+type WriteState int
+
+const (
+	writerStateStatusLine WriteState = iota
+	writerStateHeaders
+	writerBody
+)
+
+type Writer struct {
+	writer io.Writer
+	writeState WriteState
+}
+
+func NewWriter(w io.Writer) *Writer {
+	return &Writer{
+		writer: w,
+		writeState: writerStateStatusLine,
+	}
+}
+
+func (w *Writer) WriteStatusLine(statusCode StatusCode) error {
 	statusLine := ""
 	switch statusCode {
 	case StatusCodeOK:
@@ -28,7 +48,7 @@ func WriteStatusLine(w io.Writer, statusCode StatusCode) error {
 		statusLine = fmt.Sprintf("HTTP/1.1 %d \r\n", statusCode)
 	}
 	
-	_, err := w.Write([]byte(statusLine))
+	_, err := w.writer.Write([]byte(statusLine))
 	if err != nil {
 		return err
 	}
@@ -43,15 +63,19 @@ func GetDefaultHeaders(contentLen int) headers.Headers {
 	return h
 }
 
-func WriteHeaders(w io.Writer, headers headers.Headers) error {
+func (w *Writer) WriteHeaders(headers headers.Headers) error {
 	for k := range headers {
 		v := headers[k]
 		fieldLine := fmt.Sprintf("%s: %v\r\n", k, v)
-		_, err := w.Write([]byte(fieldLine))
+		_, err := w.writer.Write([]byte(fieldLine))
 		if err != nil {
 			return err
 		}
 	}
-	w.Write([]byte("\r\n"))
+	w.writer.Write([]byte("\r\n"))
 	return nil
+}
+
+func (w *Writer) WriteBody(p []byte) (int, error) {
+	return w.writer.Write(p)
 }
