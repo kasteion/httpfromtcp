@@ -60,7 +60,7 @@ func (s *Server) listen() {
 	}
 }
 
-func WriteHandlerError(w io.Writer, err HandlerError) {
+func (err HandlerError) Write(w io.Writer) {
 	response.WriteStatusLine(w, err.StatusCode)
 	h := response.GetDefaultHeaders(len(err.Message))
 	response.WriteHeaders(w, h)
@@ -78,23 +78,12 @@ func (s *Server) handle(conn net.Conn) {
 	var buf bytes.Buffer
 	hError := s.handler(&buf, req)
 	if hError != nil {
-		WriteHandlerError(conn, *hError)
+		hError.Write(conn)
 		return
 	}
 
-	err = response.WriteStatusLine(conn, response.StatusCodeOK)
-	if err != nil {
-		log.Printf("could not write status line: %s", err)
-		return
-	}
+	response.WriteStatusLine(conn, response.StatusCodeOK)
 	headers := response.GetDefaultHeaders(buf.Len())
-	err = response.WriteHeaders(conn, headers)
-	if err != nil {
-		log.Printf("could not write headers: %s", err)
-		return
-	}
-	_, err = conn.Write(buf.Bytes())
-	if err != nil {
-		log.Printf("could not write body: %s", err)
-	}
+	response.WriteHeaders(conn, headers)
+	conn.Write(buf.Bytes())
 }
