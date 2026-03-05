@@ -1,9 +1,12 @@
 package main
 
 import (
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/kasteion/httpfromtcp/internal/request"
@@ -28,6 +31,10 @@ func main() {
 }
 
 func handler(w *response.Writer, req *request.Request) {
+	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin") {
+		proxyHandler(w, req)
+		return
+	}
 	switch req.RequestLine.RequestTarget {
 	case "/yourproblem":
 		handler400(w, req)
@@ -90,4 +97,36 @@ func handler200(w *response.Writer, _ *request.Request) {
 	h.Override("Content-Type", "text/html")
 	w.WriteHeaders(h)
 	w.WriteBody([]byte(message))
+}
+
+func proxyHandler(w *response.Writer, r *request.Request) {
+	target := strings.TrimPrefix(r.RequestLine.RequestTarget, "/httpbin")
+	
+	resp, err := http.Get("https://httpbin.org" + target)
+	if err != nil {
+		handler500(w, r)
+		return
+	}
+	defer resp.Body.Close()
+
+	w.WriteStatusLine(response.StatusCodeOK)
+	h := response.GetDefaultHeaders(0)
+	h.Remove("Content-Length")
+	h.Set("Transfer-Encoding", "chunked")
+	w.WriteHeaders(h)
+
+	buf := make([]byte, 1024)
+	for {
+		n, err := resp.Body.Read(buf)
+		if n > 0 {
+			w.WriteChunkedBody(buf[:n])
+		}
+		if err != nil {
+			if err == io.EOF{
+				w.WriteChunkedBodyDone()
+				break
+			}
+			return
+		}
+	}
 }
