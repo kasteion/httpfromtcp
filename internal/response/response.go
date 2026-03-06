@@ -85,5 +85,13 @@ func (w *Writer) WriteChunkedBody(p []byte) (int, error) {
 }
 
 func (w *Writer) WriteChunkedBodyDone() (int, error) {
-	return w.writer.Write([]byte("0\r\n\r\n"))
+	return w.writer.Write([]byte("0\r\n"))
+}
+
+func (w *Writer) WriteTrailers(h headers.Headers) error {
+	for t := range h {
+		w.writer.Write(fmt.Appendf(nil, "%s: %s\r\n", t, h[t]))
+	}
+	w.writer.Write([]byte("\r\n"))
+	return nil
 }

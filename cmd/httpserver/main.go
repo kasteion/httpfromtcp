@@ -1,14 +1,18 @@
 package main
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
+	"github.com/kasteion/httpfromtcp/internal/headers"
 	"github.com/kasteion/httpfromtcp/internal/request"
 	"github.com/kasteion/httpfromtcp/internal/response"
 	"github.com/kasteion/httpfromtcp/internal/server"
@@ -100,9 +104,10 @@ func handler200(w *response.Writer, _ *request.Request) {
 }
 
 func proxyHandler(w *response.Writer, r *request.Request) {
-	target := strings.TrimPrefix(r.RequestLine.RequestTarget, "/httpbin")
+	// target := strings.TrimPrefix(r.RequestLine.RequestTarget, "/httpbin")
 	
-	resp, err := http.Get("https://httpbin.org" + target)
+	// resp, err := http.Get("https://httpbin.org" + target)
+	resp, err := http.Get("https://httpbin.org/html")
 	if err != nil {
 		handler500(w, r)
 		return
@@ -113,17 +118,25 @@ func proxyHandler(w *response.Writer, r *request.Request) {
 	h := response.GetDefaultHeaders(0)
 	h.Remove("Content-Length")
 	h.Set("Transfer-Encoding", "chunked")
+	h.Set("X-Content-SHA256", "X-Content-Sha256, X-Content-Length")
 	w.WriteHeaders(h)
 
 	buf := make([]byte, 1024)
+	fullBody := []byte{}
 	for {
 		n, err := resp.Body.Read(buf)
 		if n > 0 {
+			fullBody = append(fullBody, buf[:n]...)
 			w.WriteChunkedBody(buf[:n])
 		}
 		if err != nil {
 			if err == io.EOF{
 				w.WriteChunkedBodyDone()
+				fullBodyHash := sha256.Sum256(fullBody)
+				t := headers.NewHeaders()
+				t.Set("X-Content-Sha256", fmt.Sprintf("%x", fullBodyHash)) 
+				t.Set("X-Content-Length", strconv.Itoa(len(fullBody)))
+				w.WriteTrailers(t)
 				break
 			}
 			return
