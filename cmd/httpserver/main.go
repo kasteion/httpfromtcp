@@ -44,6 +44,8 @@ func handler(w *response.Writer, req *request.Request) {
 		handler400(w, req)
 	case "/myproblem":
 		handler500(w, req)
+	case "/video":
+		handlerVideo(w, req)
 	default:
 		handler200(w, req)
 	}
@@ -142,4 +144,18 @@ func proxyHandler(w *response.Writer, r *request.Request) {
 			return
 		}
 	}
+}
+
+func handlerVideo(w *response.Writer, r *request.Request) {
+	data, err := os.ReadFile("assets/vim.mp4")
+	if err != nil {
+		handler500(w, r)
+		return
+	}
+
+	w.WriteStatusLine(response.StatusCodeOK)
+	h := response.GetDefaultHeaders(len(data))
+	h.Override("Content-Type", "video/mp4")
+	w.WriteHeaders(h)
+	w.WriteBody(data)
 }
